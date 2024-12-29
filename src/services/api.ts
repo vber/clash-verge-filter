@@ -138,6 +138,34 @@ export const getProxiesInner = async () => {
     {} as Record<string, IProxyItem>,
   );
 
+  // Process 'now' field before returning
+  Object.values(filteredProxies).forEach((proxy) => {
+    if (proxy.now !== undefined && typeof proxy.now === "string") {
+      const hasFilteredKeyword = filterKeywords.some((keyword) =>
+        proxy.now!.toLowerCase().includes(keyword.toLowerCase()),
+      );
+
+      if (hasFilteredKeyword) {
+        // Get all available proxy names that don't contain filtered keywords
+        const availableProxies =
+          proxy.all?.filter(
+            (name) =>
+              !filterKeywords.some((keyword) =>
+                name.toLowerCase().includes(keyword.toLowerCase()),
+              ),
+          ) || [];
+
+        if (availableProxies.length > 0) {
+          // Randomly select a new proxy
+          const randomIndex = Math.floor(
+            Math.random() * availableProxies.length,
+          );
+          proxy.now = availableProxies[randomIndex];
+        }
+      }
+    }
+  });
+
   console.log("filteredProxies:", filteredProxies);
   return filteredProxies;
 };
@@ -232,6 +260,7 @@ export const getProxyProviders = async () => {
     IProxyProviderItem
   >;
 
+  console.log("providers", providers);
   return Object.fromEntries(
     Object.entries(providers).filter(([key, item]) => {
       const type = item.vehicleType.toLowerCase();

@@ -1,4 +1,5 @@
 import { cmdGetProxyDelay } from "./cmds";
+import { getVergeConfig } from "./cmds";
 
 const hashKey = (name: string, group: string) => `${group ?? ""}::${name}`;
 
@@ -88,19 +89,41 @@ class DelayManager {
     nameList: string[],
     group: string,
     timeout: number,
-    concurrency = 36
+    concurrency = 36,
   ) {
     const names = nameList.filter(Boolean);
-    // 设置正在延迟测试中
-    names.forEach((name) => this.setDelay(name, group, -2));
 
-    let total = names.length;
+    // Get verge config and filter keywords
+    const verge = await getVergeConfig();
+    const filterKeywords =
+      verge?.proxy_filter_keywords
+        ?.split(",")
+        .map((k: string) => k.trim())
+        .filter(Boolean) || [];
+
+    // Filter out names containing filtered keywords
+    const filteredNames =
+      filterKeywords.length > 0
+        ? names.filter(
+            (name) =>
+              !filterKeywords.some((keyword: string) =>
+                name.toLowerCase().includes(keyword.toLowerCase()),
+              ),
+          )
+        : names;
+
+    // 设置正在延迟测试中
+    filteredNames.forEach((name) => this.setDelay(name, group, -2));
+
+    console.log("filteredNames:", filteredNames);
+
+    let total = filteredNames.length;
     let current = 0;
 
     return new Promise((resolve) => {
       const help = async (): Promise<void> => {
         if (current >= concurrency) return;
-        const task = names.shift();
+        const task = filteredNames.shift();
         if (!task) return;
         current += 1;
         await this.checkDelay(task, group, timeout);
